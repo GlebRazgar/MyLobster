@@ -619,7 +619,7 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     const d=await r.json();
     if(!r.ok){
       loginErr.textContent=d.error||'Sign in failed';
-      if(d.code==='INVALID_PASSWORD') resetWrap.style.display='block';
+      resetWrap.style.display='block';
       return;
     }
 

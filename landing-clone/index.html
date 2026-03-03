@@ -465,15 +465,15 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     return 'pro';
   }
 
-  document.querySelectorAll('button, a').forEach(el=>{
-    const label=(el.textContent||'').trim();
-    if(/subscribe to|get openclaw|run openclaw now/i.test(label)){
-      el.addEventListener('click',(e)=>{
-        e.preventDefault();
-        openModal(inferTierFromText(label));
-      });
-    }
-  });
+  document.addEventListener('click',(e)=>{
+    const el=e.target && e.target.closest ? e.target.closest('button, a') : null;
+    if(!el) return;
+    const label=((el.textContent||'').trim());
+    if(!/subscribe to|get openclaw|run openclaw now/i.test(label)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openModal(inferTierFromText(label));
+  }, true);
 
   async function loadStripe(){
     if(window.Stripe) return;

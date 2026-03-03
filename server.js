@@ -92,21 +92,40 @@ async function sendResetEmail(to, resetUrl) {
     console.log(`[password-reset] Mailer not configured. Link for ${to}: ${resetUrl}`);
     return;
   }
-  await mailer.sendMail({
+  const info = await mailer.sendMail({
     from: SMTP_FROM,
     to,
     subject: 'Reset your YourClaw password',
     text: `Reset your password using this link (valid for 30 minutes):\n${resetUrl}`,
     html: `<p>Reset your password using this link (valid for 30 minutes):</p><p><a href="${resetUrl}">${resetUrl}</a></p>`
   });
+  console.log(`[password-reset] Email sent to ${to}; messageId=${info && info.messageId ? info.messageId : 'unknown'}`);
 }
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+if (mailer) {
+  mailer.verify()
+    .then(() => console.log('[smtp] Transport verified successfully'))
+    .catch((e) => console.error('[smtp] Transport verify failed:', e && e.message ? e.message : e));
+} else {
+  console.warn('[smtp] Mailer is not configured (SMTP_* env vars missing)');
+}
+
 app.get('/api/config', (req, res) => {
   res.json({ stripePublishableKey: STRIPE_PUBLISHABLE_KEY, stripeEnabled: Boolean(stripe) });
+});
+
+app.get('/api/debug/smtp', async (req, res) => {
+  try {
+    if (!mailer) return res.status(400).json({ ok: false, error: 'Mailer not configured' });
+    await mailer.verify();
+    return res.json({ ok: true, host: SMTP_HOST, port: SMTP_PORT, user: SMTP_USER, from: SMTP_FROM });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e && e.message ? e.message : 'SMTP verify failed' });
+  }
 });
 
 app.post('/api/auth/register', async (req, res) => {

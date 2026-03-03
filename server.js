@@ -38,7 +38,7 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, JSON.stringify({ users: [] }, null, 2));
 
 const TIERS = {
-  lite: { name: 'Lite', amount: 1900, currency: 'usd' },
+  lite: { name: 'Lite', amount: 100, currency: 'usd' },
   pro: { name: 'Pro', amount: 3900, currency: 'usd' },
   max: { name: 'Max', amount: 7900, currency: 'usd' }
 };

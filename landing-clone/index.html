@@ -456,15 +456,12 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
         <button type="button" id="ec-show-reset" style="background:rgba(255,90,80,.12);border:1px solid rgba(255,90,80,.35);color:#ff8f86;cursor:pointer;padding:8px 12px;border-radius:10px;font-size:14px;font-weight:800;text-decoration:underline;position:relative;z-index:51;pointer-events:auto">Forgot password? Reset it</button>
       </div>
       <div id="ec-reset-panel" style="display:none;margin-top:12px">
-        <p class="ec-sub" style="text-align:left;margin:0 0 10px">We'll email you a secure reset link.</p>
-        <button class="ec-btn" type="button" id="ec-reset-btn" style="height:52px;font-size:16px">Send reset email</button>
         <div id="ec-reset-error" class="ec-error"></div>
       </div>
       <p class="ec-note">New here? <a href="#" id="ec-open-register">Create account</a></p>
     </form>
 
     <div id="ec-pay" style="display:none">
-      <h3 class="ec-pay-title">Complete your payment</h3>
       <p class="ec-sub">Selected plan: <span id="ec-tier"></span></p>
       <div id="ec-checkout"></div>
       <div id="ec-pay-error" class="ec-error"></div>
@@ -485,7 +482,6 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
   const loginErr=document.getElementById('ec-login-error');
   const resetWrap=document.getElementById('ec-reset-wrap');
   const resetPanel=document.getElementById('ec-reset-panel');
-  const resetBtn=document.getElementById('ec-reset-btn');
   const showReset=document.getElementById('ec-show-reset');
   const resetErr=document.getElementById('ec-reset-error');
   const payErr=document.getElementById('ec-pay-error');
@@ -538,7 +534,19 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
   overlay.addEventListener('click',(e)=>{ if(e.target===overlay) closeModal(); });
   openSignin.addEventListener('click',(e)=>{ e.preventDefault(); showLogin(); });
   openRegister.addEventListener('click',(e)=>{ e.preventDefault(); showRegister(); });
-  showReset.addEventListener('click',()=>{ resetPanel.style.display='block'; resetErr.textContent=''; });
+  showReset.addEventListener('click', async ()=>{
+    resetPanel.style.display='block';
+    resetErr.style.color='#86efac';
+    resetErr.textContent='';
+    const email=document.getElementById('ec-login-email').value.trim();
+    if(!email){ resetErr.style.color='#fca5a5'; resetErr.textContent='Please enter your email above first.'; return; }
+
+    const r=await fetch('/api/auth/request-password-reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d=await r.json();
+    if(!r.ok){ resetErr.style.color='#fca5a5'; resetErr.textContent=d.error||'Could not send reset email'; return; }
+
+    resetErr.textContent='If an account exists for this email, a reset link has been sent.';
+  });
 
   function inferTierFromText(text){
     const t=(text||'').toLowerCase();
@@ -625,18 +633,7 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     await startCheckout(loginErr);
   });
 
-  resetBtn.addEventListener('click', async ()=>{
-    resetErr.textContent='';
-    resetErr.style.color='#86efac';
-    const email=document.getElementById('ec-login-email').value.trim();
-    if(!email){ resetErr.style.color='#fca5a5'; resetErr.textContent='Please enter your email above first.'; return; }
 
-    const r=await fetch('/api/auth/request-password-reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-    const d=await r.json();
-    if(!r.ok){ resetErr.style.color='#fca5a5'; resetErr.textContent=d.error||'Could not send reset email'; return; }
-
-    resetErr.textContent='If an account exists for this email, a reset link has been sent.';
-  });
 })();
 </script>
 </body></html>

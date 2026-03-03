@@ -7,7 +7,7 @@
  const r=await fetch('/api/auth/me');
  if(!r.ok){location.href='/login.html';return;}
  const d=await r.json();
- if(!d.user || !d.user.paid){location.href='/register.html';return;}
- document.getElementById('t').textContent='Dashboard (blank for now)';
+ if(!d.user){location.href='/login.html';return;}
+ document.getElementById('t').textContent=`Dashboard (blank for now) • Signed in as ${d.user.email}`;
 })();
 </script></body></html>

@@ -335,6 +335,10 @@ app.post('/api/payments/confirm-session', async (req, res) => {
   }
 });
 
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'landing-clone', 'dashboard.html'));
+});
+
 app.use(express.static(path.join(__dirname, 'landing-clone')));
 
 app.listen(PORT, () => {

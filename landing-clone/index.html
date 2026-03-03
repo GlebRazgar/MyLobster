@@ -474,6 +474,7 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
 <script>
 (()=>{
   let selectedTier='pro';
+  let modalMode='checkout'; // 'checkout' | 'signin'
   const overlay=document.getElementById('ec-overlay');
   const closeBtn=document.getElementById('ec-close');
   const form=document.getElementById('ec-form');
@@ -521,9 +522,17 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
 
   function openModal(tier){
     selectedTier=tier||'pro';
+    modalMode='checkout';
     tierText.textContent=tierNames[selectedTier]||selectedTier;
     showRegister();
     payErr.textContent='';
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden','false');
+  }
+
+  function openSigninModal(){
+    modalMode='signin';
+    showLogin();
     overlay.classList.add('open');
     overlay.setAttribute('aria-hidden','false');
   }
@@ -568,6 +577,14 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     const el=e.target && e.target.closest ? e.target.closest('button, a') : null;
     if(!el) return;
     const label=((el.textContent||'').trim());
+
+    if(/sign in/i.test(label) && (el.getAttribute('href')||'').includes('login')){
+      e.preventDefault();
+      e.stopPropagation();
+      openSigninModal();
+      return;
+    }
+
     if(!/subscribe to|get openclaw|run openclaw now/i.test(label)) return;
     e.preventDefault();
     e.stopPropagation();
@@ -636,6 +653,11 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     if(!r.ok){
       loginErr.textContent=d.error||'Sign in failed';
       resetWrap.style.display='block';
+      return;
+    }
+
+    if(modalMode==='signin'){
+      location.href='/dashboard';
       return;
     }
 

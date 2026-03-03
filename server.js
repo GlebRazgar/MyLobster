@@ -155,6 +155,10 @@ app.post('/api/payments/create-checkout-session', async (req, res) => {
       }
     }
 
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host = req.headers['x-forwarded-host'] || req.get('host');
+    const returnUrl = `${proto}://${host}/payment-success.html?session_id={CHECKOUT_SESSION_ID}`;
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       ui_mode: 'embedded',
@@ -171,7 +175,7 @@ app.post('/api/payments/create-checkout-session', async (req, res) => {
         }
       ],
       metadata: { userId: user.id, tier },
-      return_url: `http://127.0.0.1:${PORT}/payment-success.html?session_id={CHECKOUT_SESSION_ID}`
+      return_url: returnUrl
     });
 
     return res.json({ clientSecret: session.client_secret });

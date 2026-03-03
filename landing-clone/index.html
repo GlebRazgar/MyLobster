@@ -536,16 +536,23 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
   openRegister.addEventListener('click',(e)=>{ e.preventDefault(); showRegister(); });
   showReset.addEventListener('click', async ()=>{
     resetPanel.style.display='block';
+    resetErr.style.display='block';
     resetErr.style.color='#86efac';
-    resetErr.textContent='';
     const email=document.getElementById('ec-login-email').value.trim();
     if(!email){ resetErr.style.color='#fca5a5'; resetErr.textContent='Please enter your email above first.'; return; }
 
-    const r=await fetch('/api/auth/request-password-reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-    const d=await r.json();
-    if(!r.ok){ resetErr.style.color='#fca5a5'; resetErr.textContent=d.error||'Could not send reset email'; return; }
-
-    resetErr.textContent='If an account exists for this email, a reset link has been sent.';
+    resetErr.textContent='Sending reset email...';
+    try {
+      const r=await fetch('/api/auth/request-password-reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+      let d={};
+      try { d=await r.json(); } catch {}
+      if(!r.ok){ resetErr.style.color='#fca5a5'; resetErr.textContent=d.error||'Could not send reset email'; return; }
+      resetErr.style.color='#86efac';
+      resetErr.textContent='If an account exists for this email, a reset link has been sent.';
+    } catch {
+      resetErr.style.color='#fca5a5';
+      resetErr.textContent='Network error while sending reset email.';
+    }
   });
 
   function inferTierFromText(text){

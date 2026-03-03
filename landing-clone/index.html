@@ -651,7 +651,13 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     }
 
     if(modalMode==='signin'){
-      location.href='/dashboard';
+      if(d.user && d.user.paid){
+        location.href='/dashboard';
+        return;
+      }
+      loginErr.textContent='Signed in, but no active subscription yet. Choose a plan to continue.';
+      modalMode='checkout';
+      await startCheckout(loginErr);
       return;
     }
 

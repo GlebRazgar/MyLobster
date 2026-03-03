@@ -169,7 +169,16 @@ app.post('/api/auth/login', async (req, res) => {
     if (!ok) return res.status(401).json({ error: 'Invalid email or password', code: 'INVALID_PASSWORD' });
 
     setSession(res, user);
-    return res.json({ ok: true, user: { id: user.id, email: user.email } });
+    return res.json({
+      ok: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        tier: user.tier,
+        subscriptionStatus: user.subscriptionStatus,
+        paid: user.subscriptionStatus === 'active'
+      }
+    });
   } catch {
     return res.status(500).json({ error: 'Login failed' });
   }
@@ -335,7 +344,22 @@ app.post('/api/payments/confirm-session', async (req, res) => {
   }
 });
 
-app.get('/dashboard', (req, res) => {
+function requirePaidUser(req, res) {
+  const user = getAuthUser(req);
+  if (!user) {
+    res.redirect('/index.html');
+    return null;
+  }
+  if (user.subscriptionStatus !== 'active') {
+    res.redirect('/index.html');
+    return null;
+  }
+  return user;
+}
+
+app.get(['/dashboard', '/dashboard.html'], (req, res) => {
+  const user = requirePaidUser(req, res);
+  if (!user) return;
   res.sendFile(path.join(__dirname, 'landing-clone', 'dashboard.html'));
 });
 

@@ -5,9 +5,9 @@
 <script>
 (async()=>{
  const r=await fetch('/api/auth/me');
- if(!r.ok){location.href='/login.html';return;}
+ if(!r.ok){location.href='/index.html';return;}
  const d=await r.json();
- if(!d.user){location.href='/login.html';return;}
+ if(!d.user || !d.user.paid){location.href='/index.html';return;}
  document.getElementById('t').textContent=`Dashboard (blank for now) • Signed in as ${d.user.email}`;
 })();
 </script></body></html>

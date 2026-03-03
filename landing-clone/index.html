@@ -456,11 +456,8 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
         <button type="button" id="ec-show-reset" style="background:rgba(255,90,80,.12);border:1px solid rgba(255,90,80,.35);color:#ff8f86;cursor:pointer;padding:8px 12px;border-radius:10px;font-size:14px;font-weight:800;text-decoration:underline;position:relative;z-index:51;pointer-events:auto">Forgot password? Reset it</button>
       </div>
       <div id="ec-reset-panel" style="display:none;margin-top:12px">
-        <div class="ec-field" style="margin-bottom:10px">
-          <label class="ec-label" for="ec-reset-password">New password</label>
-          <input id="ec-reset-password" class="ec-input" type="password" minlength="8" placeholder="Enter new password" />
-        </div>
-        <button class="ec-btn" type="button" id="ec-reset-btn" style="height:52px;font-size:16px">Reset password</button>
+        <p class="ec-sub" style="text-align:left;margin:0 0 10px">We'll email you a secure reset link.</p>
+        <button class="ec-btn" type="button" id="ec-reset-btn" style="height:52px;font-size:16px">Send reset email</button>
         <div id="ec-reset-error" class="ec-error"></div>
       </div>
       <p class="ec-note">New here? <a href="#" id="ec-open-register">Create account</a></p>
@@ -630,16 +627,15 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
 
   resetBtn.addEventListener('click', async ()=>{
     resetErr.textContent='';
-    const email=document.getElementById('ec-login-email').value.trim();
-    const newPassword=document.getElementById('ec-reset-password').value;
-    if(!email){ resetErr.textContent='Please enter your email above first.'; return; }
-
-    const r=await fetch('/api/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,newPassword})});
-    const d=await r.json();
-    if(!r.ok){ resetErr.textContent=d.error||'Could not reset password'; return; }
-
     resetErr.style.color='#86efac';
-    resetErr.textContent='Password reset. You can sign in now.';
+    const email=document.getElementById('ec-login-email').value.trim();
+    if(!email){ resetErr.style.color='#fca5a5'; resetErr.textContent='Please enter your email above first.'; return; }
+
+    const r=await fetch('/api/auth/request-password-reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d=await r.json();
+    if(!r.ok){ resetErr.style.color='#fca5a5'; resetErr.textContent=d.error||'Could not send reset email'; return; }
+
+    resetErr.textContent='If an account exists for this email, a reset link has been sent.';
   });
 })();
 </script>

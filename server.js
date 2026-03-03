@@ -5,6 +5,8 @@ const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const Stripe = require('stripe');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -12,6 +14,22 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-change-me';
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_PUBLISHABLE_KEY = process.env.STRIPE_PUBLISHABLE_KEY || '';
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
+
+const APP_BASE_URL = process.env.APP_BASE_URL || '';
+const SMTP_HOST = process.env.SMTP_HOST || '';
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER || 'no-reply@yourclaw.space';
+
+const mailer = SMTP_HOST && SMTP_USER && SMTP_PASS
+  ? nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
+      auth: { user: SMTP_USER, pass: SMTP_PASS }
+    })
+  : null;
 
 const DATA_DIR = path.join(__dirname, 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
@@ -56,6 +74,31 @@ function getAuthUser(req) {
   } catch {
     return null;
   }
+}
+
+function getBaseUrl(req) {
+  if (APP_BASE_URL) return APP_BASE_URL.replace(/\/$/, '');
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const host = req.headers['x-forwarded-host'] || req.get('host');
+  return `${proto}://${host}`;
+}
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+async function sendResetEmail(to, resetUrl) {
+  if (!mailer) {
+    console.log(`[password-reset] Mailer not configured. Link for ${to}: ${resetUrl}`);
+    return;
+  }
+  await mailer.sendMail({
+    from: SMTP_FROM,
+    to,
+    subject: 'Reset your YourClaw password',
+    text: `Reset your password using this link (valid for 30 minutes):\n${resetUrl}`,
+    html: `<p>Reset your password using this link (valid for 30 minutes):</p><p><a href="${resetUrl}">${resetUrl}</a></p>`
+  });
 }
 
 app.use(express.json());
@@ -113,19 +156,58 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/auth/reset-password', async (req, res) => {
+app.post('/api/auth/request-password-reset', async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
-    const newPassword = String(req.body.newPassword || '');
     if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
+
+    const users = readUsers();
+    const i = users.findIndex(u => u.email === email);
+
+    // Always return success to avoid account enumeration.
+    if (i < 0) return res.json({ ok: true });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashToken(token);
+    const expiresAt = Date.now() + 30 * 60 * 1000;
+
+    users[i].passwordResetTokenHash = tokenHash;
+    users[i].passwordResetExpiresAt = new Date(expiresAt).toISOString();
+    writeUsers(users);
+
+    const resetUrl = `${getBaseUrl(req)}/reset-password.html?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+    await sendResetEmail(email, resetUrl);
+
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: 'Could not send reset email' });
+  }
+});
+
+app.post('/api/auth/perform-password-reset', async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    const token = String(req.body.token || '');
+    const newPassword = String(req.body.newPassword || '');
+
+    if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
+    if (!token) return res.status(400).json({ error: 'Reset token required' });
     if (newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 chars' });
 
     const users = readUsers();
     const i = users.findIndex(u => u.email === email);
-    if (i < 0) return res.status(404).json({ error: 'No account found for this email' });
+    if (i < 0) return res.status(400).json({ error: 'Invalid or expired reset link' });
+
+    const expected = users[i].passwordResetTokenHash;
+    const expiresAt = users[i].passwordResetExpiresAt ? new Date(users[i].passwordResetExpiresAt).getTime() : 0;
+    if (!expected || Date.now() > expiresAt || expected !== hashToken(token)) {
+      return res.status(400).json({ error: 'Invalid or expired reset link' });
+    }
 
     users[i].passwordHash = await bcrypt.hash(newPassword, 10);
     users[i].passwordResetAt = new Date().toISOString();
+    users[i].passwordResetTokenHash = null;
+    users[i].passwordResetExpiresAt = null;
     writeUsers(users);
 
     return res.json({ ok: true });

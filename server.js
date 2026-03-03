@@ -104,12 +104,33 @@ app.post('/api/auth/login', async (req, res) => {
     if (!user) return res.status(401).json({ error: 'Invalid email or password' });
 
     const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) return res.status(401).json({ error: 'Invalid email or password' });
+    if (!ok) return res.status(401).json({ error: 'Invalid email or password', code: 'INVALID_PASSWORD' });
 
     setSession(res, user);
     return res.json({ ok: true, user: { id: user.id, email: user.email } });
   } catch {
     return res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    const newPassword = String(req.body.newPassword || '');
+    if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
+    if (newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 chars' });
+
+    const users = readUsers();
+    const i = users.findIndex(u => u.email === email);
+    if (i < 0) return res.status(404).json({ error: 'No account found for this email' });
+
+    users[i].passwordHash = await bcrypt.hash(newPassword, 10);
+    users[i].passwordResetAt = new Date().toISOString();
+    writeUsers(users);
+
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: 'Password reset failed' });
   }
 });
 

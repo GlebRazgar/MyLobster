@@ -1,0 +1,13 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard</title>
+<style>body{margin:0;background:#050810;color:#fff;font-family:Inter,Arial} .blank{height:100vh;display:flex;align-items:center;justify-content:center;color:#94a3b8}</style>
+</head><body><div class="blank" id="t">Loading dashboard…</div>
+<script>
+(async()=>{
+ const r=await fetch('/api/auth/me');
+ if(!r.ok){location.href='/login.html';return;}
+ const d=await r.json();
+ if(!d.user || !d.user.paid){location.href='/register.html';return;}
+ document.getElementById('t').textContent='Dashboard (blank for now)';
+})();
+</script></body></html>

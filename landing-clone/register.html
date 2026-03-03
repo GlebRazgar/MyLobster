@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign up • EasyClaw</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    body{font-family:Inter,system-ui,Arial;background:#0b0f1a;color:#fff;margin:0}
+    .wrap{max-width:960px;margin:0 auto;padding:24px}
+    .card{background:#111827;border:1px solid #2a3242;border-radius:16px;padding:20px}
+    h1{margin:0 0 12px} .muted{color:#9ca3af}
+    input{width:100%;padding:12px;border-radius:10px;border:1px solid #374151;background:#0f172a;color:#fff;margin:8px 0}
+    button{padding:12px 14px;border:0;border-radius:10px;background:#ef4444;color:white;font-weight:700;cursor:pointer}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .tiers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .tier{border:1px solid #334155;border-radius:12px;padding:12px;cursor:pointer}
+    .tier.active{border-color:#ef4444;box-shadow:0 0 0 1px #ef4444 inset}
+    #checkout{margin-top:12px}
+    .hidden{display:none}
+    .err{color:#fca5a5;min-height:18px;font-size:13px}
+    @media (max-width:860px){.row{grid-template-columns:1fr}.tiers{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Create your EasyClaw account</h1>
+    <p class="muted">Register, choose a plan, and pay inline without leaving this page.</p>
+    <div class="row">
+      <div class="card">
+        <h3>1) Account</h3>
+        <form id="registerForm">
+          <input type="email" id="email" placeholder="Email" required />
+          <input type="password" id="password" placeholder="Password (min 8 chars)" minlength="8" required />
+          <div id="err" class="err"></div>
+          <button type="submit">Create account</button>
+        </form>
+      </div>
+      <div class="card">
+        <h3>2) Pick a plan</h3>
+        <div class="tiers" id="tiers">
+          <div class="tier" data-tier="lite"><b>Lite</b><div class="muted">$19/mo</div></div>
+          <div class="tier" data-tier="pro"><b>Pro</b><div class="muted">$39/mo</div></div>
+          <div class="tier" data-tier="max"><b>Max</b><div class="muted">$79/mo</div></div>
+        </div>
+        <div style="margin-top:12px">
+          <button id="payBtn" class="hidden">Continue to payment</button>
+          <div class="err" id="payErr"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card hidden" id="checkoutCard">
+      <h3>3) Payment</h3>
+      <div id="checkout"></div>
+    </div>
+  </div>
+
+<script>
+let selectedTier=null;
+let stripe=null;
+let registered=false;
+
+for(const el of document.querySelectorAll('.tier')){
+  el.addEventListener('click',()=>{
+    document.querySelectorAll('.tier').forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
+    selectedTier=el.dataset.tier;
+    document.getElementById('payBtn').classList.remove('hidden');
+  });
+}
+
+document.getElementById('registerForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const email=document.getElementById('email').value;
+  const password=document.getElementById('password').value;
+  const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+  const d=await r.json();
+  if(!r.ok){document.getElementById('err').textContent=d.error||'Registration failed';return;}
+  registered=true;
+  document.getElementById('err').textContent='Account created. Now choose a tier.';
+});
+
+document.getElementById('payBtn').addEventListener('click', async ()=>{
+  const payErr=document.getElementById('payErr');
+  payErr.textContent='';
+  if(!registered){payErr.textContent='Please create account first.';return;}
+  if(!selectedTier){payErr.textContent='Please pick a tier.';return;}
+
+  const cfg=await fetch('/api/config').then(r=>r.json());
+  if(!cfg.stripeEnabled || !cfg.stripePublishableKey){
+    payErr.textContent='Payments not configured yet (missing Stripe keys on server).';
+    return;
+  }
+
+  const r=await fetch('/api/payments/create-checkout-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tier:selectedTier})});
+  const d=await r.json();
+  if(!r.ok){payErr.textContent=d.error||'Could not start checkout';return;}
+
+  stripe = Stripe(cfg.stripePublishableKey);
+  document.getElementById('checkoutCard').classList.remove('hidden');
+  const checkout = await stripe.initEmbeddedCheckout({ clientSecret: d.clientSecret });
+  checkout.mount('#checkout');
+});
+</script>
+</body>
+</html>

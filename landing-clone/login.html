@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in • EasyClaw</title>
+  <style>
+    body{font-family:Inter,system-ui,Arial;background:#0b0f1a;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+    .card{width:min(420px,92vw);background:#111827;border:1px solid #2a3242;border-radius:16px;padding:24px}
+    h1{margin:0 0 16px;font-size:24px}.muted{color:#9ca3af;font-size:14px}
+    input{width:100%;padding:12px;border-radius:10px;border:1px solid #374151;background:#0f172a;color:#fff;margin:8px 0}
+    button{width:100%;padding:12px;border:0;border-radius:10px;background:#ef4444;color:white;font-weight:700;cursor:pointer}
+    a{color:#f87171}
+    .err{color:#fca5a5;font-size:13px;min-height:18px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Sign in to EasyClaw</h1>
+    <p class="muted">Welcome back.</p>
+    <form id="f">
+      <input type="email" id="email" placeholder="Email" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <div class="err" id="err"></div>
+      <button type="submit">Sign in</button>
+    </form>
+    <p class="muted">New here? <a href="/register.html">Create account</a></p>
+  </div>
+<script>
+const f=document.getElementById('f');
+f.addEventListener('submit',async(e)=>{
+  e.preventDefault();
+  const email=document.getElementById('email').value;
+  const password=document.getElementById('password').value;
+  const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+  const d=await r.json();
+  if(!r.ok){document.getElementById('err').textContent=d.error||'Failed';return;}
+  location.href='/index.html';
+});
+</script>
+</body>
+</html>

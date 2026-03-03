@@ -436,7 +436,21 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
       <button class="ec-btn" type="submit" id="ec-submit">Create account</button>
       <div id="ec-error" class="ec-error"></div>
       <p class="ec-legal">By continuing, you agree to EasyClaw's <a href="/terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</p>
-      <p class="ec-note">Already have an account? <a href="/login.html">Sign in</a></p>
+      <p class="ec-note">Already have an account? <a href="#" id="ec-open-signin">Sign in</a></p>
+    </form>
+
+    <form id="ec-login-form" style="display:none">
+      <div class="ec-field">
+        <label class="ec-label" for="ec-login-email">Email</label>
+        <input id="ec-login-email" class="ec-input" type="email" required placeholder="Enter your email" />
+      </div>
+      <div class="ec-field">
+        <label class="ec-label" for="ec-login-password">Password</label>
+        <input id="ec-login-password" class="ec-input" type="password" required placeholder="Enter your password" />
+      </div>
+      <button class="ec-btn" type="submit" id="ec-login-submit">Sign in</button>
+      <div id="ec-login-error" class="ec-error"></div>
+      <p class="ec-note">New here? <a href="#" id="ec-open-register">Create account</a></p>
     </form>
 
     <div id="ec-pay" style="display:none">
@@ -454,18 +468,42 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
   const overlay=document.getElementById('ec-overlay');
   const closeBtn=document.getElementById('ec-close');
   const form=document.getElementById('ec-form');
+  const loginForm=document.getElementById('ec-login-form');
+  const openSignin=document.getElementById('ec-open-signin');
+  const openRegister=document.getElementById('ec-open-register');
   const err=document.getElementById('ec-error');
+  const loginErr=document.getElementById('ec-login-error');
   const payErr=document.getElementById('ec-pay-error');
   const payWrap=document.getElementById('ec-pay');
   const tierText=document.getElementById('ec-tier');
+  const titleEl=document.getElementById('ec-title');
+  const subEl=document.getElementById('ec-sub');
   const tierNames={lite:'Lite',pro:'Pro',max:'Max'};
+
+  function showRegister(){
+    titleEl.textContent='Create an account';
+    subEl.textContent='Get started with your personal AI assistant';
+    form.style.display='block';
+    loginForm.style.display='none';
+    payWrap.style.display='none';
+    err.textContent='';
+    loginErr.textContent='';
+  }
+
+  function showLogin(){
+    titleEl.textContent='Sign in';
+    subEl.textContent='Welcome back';
+    form.style.display='none';
+    loginForm.style.display='block';
+    payWrap.style.display='none';
+    err.textContent='';
+    loginErr.textContent='';
+  }
 
   function openModal(tier){
     selectedTier=tier||'pro';
     tierText.textContent=tierNames[selectedTier]||selectedTier;
-    form.style.display='block';
-    payWrap.style.display='none';
-    err.textContent='';
+    showRegister();
     payErr.textContent='';
     overlay.classList.add('open');
     overlay.setAttribute('aria-hidden','false');
@@ -477,6 +515,8 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
 
   closeBtn.addEventListener('click',closeModal);
   overlay.addEventListener('click',(e)=>{ if(e.target===overlay) closeModal(); });
+  openSignin.addEventListener('click',(e)=>{ e.preventDefault(); showLogin(); });
+  openRegister.addEventListener('click',(e)=>{ e.preventDefault(); showRegister(); });
 
   function inferTierFromText(text){
     const t=(text||'').toLowerCase();
@@ -506,6 +546,29 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     });
   }
 
+  async function startCheckout(errorTarget){
+    const cfg=await fetch('/api/config').then(r=>r.json());
+    if(!cfg.stripeEnabled || !cfg.stripePublishableKey){
+      errorTarget.textContent='Payments not configured yet.';
+      return;
+    }
+
+    const p=await fetch('/api/payments/create-checkout-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tier:selectedTier})});
+    const pd=await p.json();
+    if(!p.ok){ errorTarget.textContent=pd.error||'Could not start checkout'; return; }
+
+    form.style.display='none';
+    loginForm.style.display='none';
+    payWrap.style.display='block';
+    titleEl.textContent='Complete your payment';
+    subEl.textContent='';
+    await loadStripe();
+    const stripe=Stripe(cfg.stripePublishableKey);
+    const checkout=await stripe.initEmbeddedCheckout({clientSecret:pd.clientSecret});
+    document.getElementById('ec-checkout').innerHTML='';
+    checkout.mount('#ec-checkout');
+  }
+
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();
     err.textContent='';
@@ -517,23 +580,20 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     const d=await r.json();
     if(!r.ok){ err.textContent=d.error||'Registration failed'; return; }
 
-    const cfg=await fetch('/api/config').then(r=>r.json());
-    if(!cfg.stripeEnabled || !cfg.stripePublishableKey){
-      err.textContent='Payments not configured yet.';
-      return;
-    }
+    await startCheckout(err);
+  });
 
-    const p=await fetch('/api/payments/create-checkout-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tier:selectedTier})});
-    const pd=await p.json();
-    if(!p.ok){ err.textContent=pd.error||'Could not start checkout'; return; }
+  loginForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    loginErr.textContent='';
+    const email=document.getElementById('ec-login-email').value;
+    const password=document.getElementById('ec-login-password').value;
 
-    form.style.display='none';
-    payWrap.style.display='block';
-    await loadStripe();
-    const stripe=Stripe(cfg.stripePublishableKey);
-    const checkout=await stripe.initEmbeddedCheckout({clientSecret:pd.clientSecret});
-    document.getElementById('ec-checkout').innerHTML='';
-    checkout.mount('#ec-checkout');
+    const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const d=await r.json();
+    if(!r.ok){ loginErr.textContent=d.error||'Sign in failed'; return; }
+
+    await startCheckout(loginErr);
   });
 })();
 </script>

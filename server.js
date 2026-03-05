@@ -389,6 +389,7 @@ app.post('/api/payments/create-checkout-session', async (req, res) => {
     if (!stripe) return res.status(400).json({ error: 'Stripe not configured on server' });
 
     const tier = String(req.body.tier || '').toLowerCase();
+    console.log('[payments] create-checkout-session requested tier=', tier, 'user=', user.email);
     const plan = TIERS[tier];
     if (!plan) return res.status(400).json({ error: 'Invalid tier' });
 

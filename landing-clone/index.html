@@ -496,21 +496,21 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
   }
 
   function inferTierFromElement(el,label){
-    const forced=(el && el.dataset && el.dataset.tier) ? el.dataset.tier : '';
-    if(forced) return forced;
+    let cur=el;
+    for(let i=0;i<8 && cur;i+=1){
+      if(cur.dataset && cur.dataset.tier) return cur.dataset.tier;
+      cur=cur.parentElement;
+    }
 
     const t=(label||'').toLowerCase();
-    if(t.includes('run openclaw now')) return 'lite';
-    if(t.includes('subscribe to lite')) return 'lite';
-    if(t.includes('subscribe to pro')) return 'pro';
-    if(t.includes('subscribe to max')) return 'max';
-    if(t.includes('lite')) return 'lite';
-    if(t.includes('max')) return 'max';
-    if(t.includes('pro')) return 'pro';
+    if(/run openclaw now/.test(t)) return 'lite';
+    if(/subscribe to lite/.test(t)) return 'lite';
+    if(/subscribe to pro/.test(t)) return 'pro';
+    if(/subscribe to max/.test(t)) return 'max';
 
     const snippets=[];
-    let cur=el;
-    for(let i=0;i<4 && cur;i+=1){
+    cur=el;
+    for(let i=0;i<8 && cur;i+=1){
       snippets.push((cur.textContent||'').toLowerCase());
       cur=cur.parentElement;
     }
@@ -641,17 +641,20 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     });
   }
 
-  async function startCheckout(errorTarget){
+  async function startCheckout(errorTarget, tierOverride){
+    const tierForCheckout=tierOverride||preferredTier||selectedTier||'lite';
+    setPreferredTier(tierForCheckout);
     const cfg=await fetch('/api/config').then(r=>r.json());
     if(!cfg.stripeEnabled || !cfg.stripePublishableKey){
       errorTarget.textContent='Payments not configured yet.';
       return;
     }
 
-    const p=await fetch('/api/payments/create-checkout-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tier:selectedTier})});
+    const p=await fetch('/api/payments/create-checkout-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tier:tierForCheckout})});
     const pd=await p.json();
     if(!p.ok){ errorTarget.textContent=pd.error||'Could not start checkout'; return; }
 
+    tierText.textContent=tierNames[tierForCheckout]||tierForCheckout;
     form.style.display='none';
     loginForm.style.display='none';
     payWrap.style.display='block';
@@ -675,7 +678,7 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     const d=await r.json();
     if(!r.ok){ err.textContent=d.error||'Registration failed'; return; }
 
-    await startCheckout(err);
+    await startCheckout(err, preferredTier||selectedTier||'lite');
   });
 
   loginForm.addEventListener('submit', async (e)=>{
@@ -702,11 +705,11 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
       }
       loginErr.textContent='Signed in, but no active subscription yet. Choose a plan to continue.';
       modalMode='checkout';
-      await startCheckout(loginErr);
+      await startCheckout(loginErr, preferredTier||selectedTier||'lite');
       return;
     }
 
-    await startCheckout(loginErr);
+    await startCheckout(loginErr, preferredTier||selectedTier||'lite');
   });
 
 

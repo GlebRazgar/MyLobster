@@ -43,7 +43,7 @@ const DATA_DIR = path.join(__dirname, 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 
 const TIERS = {
-  lite: { name: 'Lite', amount: 1900, currency: 'usd' },
+  lite: { name: 'Lite', amount: 100, currency: 'usd' },
   pro: { name: 'Pro', amount: 3900, currency: 'usd' },
   max: { name: 'Max', amount: 7900, currency: 'usd' }
 };

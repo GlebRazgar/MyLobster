@@ -467,8 +467,8 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
 
 <script>
 (()=>{
-  let selectedTier='lite';
-  let preferredTier='lite';
+  let preferredTier=(sessionStorage.getItem('yc_preferred_tier')||'lite');
+  let selectedTier=preferredTier;
   let modalMode='checkout'; // 'checkout' | 'signin'
   const overlay=document.getElementById('ec-overlay');
   const closeBtn=document.getElementById('ec-close');
@@ -488,6 +488,32 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
   const titleEl=document.getElementById('ec-title');
   const subEl=document.getElementById('ec-sub');
   const tierNames={lite:'Lite',pro:'Pro',max:'Max'};
+
+  function setPreferredTier(tier){
+    preferredTier=tier||'lite';
+    selectedTier=preferredTier;
+    try{ sessionStorage.setItem('yc_preferred_tier', preferredTier); }catch{}
+  }
+
+  function inferTierFromElement(el,label){
+    const t=(label||'').toLowerCase();
+    if(t.includes('run openclaw now')) return 'lite';
+    if(t.includes('lite')) return 'lite';
+    if(t.includes('max')) return 'max';
+    if(t.includes('pro')) return 'pro';
+
+    const snippets=[];
+    let cur=el;
+    for(let i=0;i<4 && cur;i+=1){
+      snippets.push((cur.textContent||'').toLowerCase());
+      cur=cur.parentElement;
+    }
+    const joined=snippets.join(' ');
+    if(/\blite\b/.test(joined)) return 'lite';
+    if(/\bmax\b/.test(joined)) return 'max';
+    if(/\bpro\b/.test(joined)) return 'pro';
+    return preferredTier||'lite';
+  }
 
   function showRegister(){
     titleEl.textContent='Create an account';
@@ -516,8 +542,7 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
   }
 
   function openModal(tier){
-    selectedTier=tier||preferredTier||'lite';
-    preferredTier=selectedTier;
+    setPreferredTier(tier||preferredTier||'lite');
     modalMode='checkout';
     tierText.textContent=tierNames[selectedTier]||selectedTier;
     showRegister();
@@ -527,12 +552,7 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
   }
 
   function openSigninModal(tierHint){
-    if(tierHint){
-      selectedTier=tierHint;
-      preferredTier=tierHint;
-    } else {
-      selectedTier=preferredTier||selectedTier||'lite';
-    }
+    setPreferredTier(tierHint||preferredTier||selectedTier||'lite');
     modalMode='signin';
     showLogin();
     overlay.classList.add('open');
@@ -545,7 +565,7 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
 
   closeBtn.addEventListener('click',closeModal);
   overlay.addEventListener('click',(e)=>{ if(e.target===overlay) closeModal(); });
-  openSignin.addEventListener('click',(e)=>{ e.preventDefault(); showLogin(); });
+  openSignin.addEventListener('click',(e)=>{ e.preventDefault(); setPreferredTier(selectedTier||preferredTier||'lite'); showLogin(); });
   openRegister.addEventListener('click',(e)=>{ e.preventDefault(); showRegister(); });
   showReset.addEventListener('click', async ()=>{
     resetPanel.style.display='block';
@@ -568,13 +588,6 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     }
   });
 
-  function inferTierFromText(text){
-    const t=(text||'').toLowerCase();
-    if(t.includes('lite')) return 'lite';
-    if(t.includes('max')) return 'max';
-    return 'pro';
-  }
-
   document.addEventListener('click',(e)=>{
     const el=e.target && e.target.closest ? e.target.closest('button, a') : null;
     if(!el) return;
@@ -590,8 +603,7 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     if(!/subscribe to|get openclaw|run openclaw now/i.test(label)) return;
     e.preventDefault();
     e.stopPropagation();
-    const inferredTier=/run openclaw now/i.test(label) ? 'lite' : inferTierFromText(label);
-    preferredTier=inferredTier;
+    const inferredTier=inferTierFromElement(el,label);
     openModal(inferredTier);
   }, true);
 

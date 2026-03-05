@@ -1,13 +1,137 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard</title>
-<style>body{margin:0;background:#050810;color:#fff;font-family:Inter,Arial} .blank{height:100vh;display:flex;align-items:center;justify-content:center;color:#94a3b8}</style>
-</head><body><div class="blank" id="t">Loading dashboard…</div>
-<script>
-(async()=>{
- const r=await fetch('/api/auth/me');
- if(!r.ok){location.href='/index.html';return;}
- const d=await r.json();
- if(!d.user || !d.user.paid){location.href='/index.html';return;}
- document.getElementById('t').textContent=`Dashboard (blank for now) • Signed in as ${d.user.email}`;
-})();
-</script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>YourClaw Dashboard</title>
+  <style>
+    :root{
+      --bg:#050810;
+      --panel:#0d1220;
+      --panel-2:#111827;
+      --text:#f0f4ff;
+      --muted:#8b95b2;
+      --accent:#ef4444;
+      --line:#1f2937;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif}
+    .app{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+
+    .sidebar{background:var(--panel);border-right:1px solid var(--line);padding:18px;display:flex;flex-direction:column;gap:14px}
+    .brand{font-weight:800;letter-spacing:.2px}
+    .brand span{color:var(--accent)}
+    .menu{display:flex;flex-direction:column;gap:8px}
+    .menu-btn{width:100%;text-align:left;background:transparent;color:var(--text);border:1px solid transparent;border-radius:10px;padding:11px 12px;cursor:pointer;font-weight:600}
+    .menu-btn:hover{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06)}
+    .menu-btn.active{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#ffb0b0}
+
+    .spacer{flex:1}
+    .user-card{border:1px solid var(--line);background:var(--panel-2);border-radius:12px;padding:12px}
+    .user-email{font-size:13px;color:var(--muted);word-break:break-all;margin:0 0 10px}
+    .logout{width:100%;padding:9px 10px;border-radius:9px;border:1px solid #374151;background:#111827;color:var(--text);cursor:pointer}
+
+    .main{padding:24px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+    h1{margin:0 0 14px;font-size:24px}
+    h2{margin:0 0 10px;font-size:18px}
+    p{margin:0;color:var(--muted);line-height:1.45}
+    .hidden{display:none}
+
+    .chat-wrap{display:flex;flex-direction:column;gap:12px;max-width:900px}
+    .chat-box{min-height:340px;border:1px dashed #334155;border-radius:12px;padding:14px;color:#9fb0d1;background:#0b1020}
+
+    .settings-grid{display:grid;gap:10px;max-width:700px}
+    .setting{padding:12px;border:1px solid var(--line);border-radius:10px;background:#0b1020}
+
+    .support-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .support-actions a{display:inline-block;padding:10px 12px;border-radius:9px;text-decoration:none;border:1px solid #374151;color:var(--text);background:#111827}
+
+    @media (max-width: 900px){
+      .app{grid-template-columns:1fr}
+      .sidebar{border-right:none;border-bottom:1px solid var(--line)}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">Your<span>Claw</span></div>
+
+      <nav class="menu">
+        <button class="menu-btn active" data-tab="chat">Chat</button>
+        <button class="menu-btn" data-tab="settings">Settings</button>
+        <button class="menu-btn" data-tab="support">Support</button>
+      </nav>
+
+      <div class="spacer"></div>
+
+      <div class="user-card">
+        <p class="user-email" id="user-email">Loading user…</p>
+        <button class="logout" id="logout-btn">Log out</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section id="tab-chat" class="tab">
+        <h1>Chat</h1>
+        <div class="card chat-wrap">
+          <h2>Your assistant chat</h2>
+          <p>Chat UI placeholder for now. Next step: embed message stream + input composer.</p>
+          <div class="chat-box">Chat window placeholder</div>
+        </div>
+      </section>
+
+      <section id="tab-settings" class="tab hidden">
+        <h1>Settings</h1>
+        <div class="card settings-grid">
+          <div class="setting"><strong>Account:</strong> Manage profile and password</div>
+          <div class="setting"><strong>Subscription:</strong> Current plan and billing status</div>
+          <div class="setting"><strong>Integrations:</strong> WhatsApp / Telegram / Discord setup (coming next)</div>
+        </div>
+      </section>
+
+      <section id="tab-support" class="tab hidden">
+        <h1>Support</h1>
+        <div class="card">
+          <p style="margin-bottom:12px">Need help? Reach support or docs:</p>
+          <div class="support-actions">
+            <a href="/support.html">Support page</a>
+            <a href="/tutorial.html">Tutorial</a>
+            <a href="mailto:support@yourclaw.space">Email support</a>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (async()=>{
+      const r=await fetch('/api/auth/me');
+      if(!r.ok){ location.href='/index.html'; return; }
+      const d=await r.json();
+      if(!d.user || !d.user.paid){ location.href='/index.html'; return; }
+
+      const emailEl=document.getElementById('user-email');
+      emailEl.textContent=d.user.email || 'Signed in user';
+
+      const tabs=['chat','settings','support'];
+      const btns=[...document.querySelectorAll('.menu-btn')];
+      function openTab(name){
+        for(const t of tabs){
+          document.getElementById('tab-'+t).classList.toggle('hidden', t!==name);
+        }
+        for(const b of btns){
+          b.classList.toggle('active', b.dataset.tab===name);
+        }
+      }
+      btns.forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.tab)));
+
+      document.getElementById('logout-btn').addEventListener('click', async()=>{
+        await fetch('/api/auth/logout',{method:'POST'});
+        location.href='/index.html';
+      });
+    })();
+  </script>
+</body>
+</html>

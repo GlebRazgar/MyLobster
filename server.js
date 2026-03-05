@@ -489,7 +489,14 @@ async function requirePaidUser(req, res) {
 app.get(['/dashboard', '/dashboard.html'], async (req, res) => {
   const user = await requirePaidUser(req, res);
   if (!user) return;
-  res.sendFile(path.join(__dirname, 'landing-clone', 'dashboard.html'));
+
+  const dashboardPath = path.resolve(process.cwd(), 'landing-clone', 'dashboard.html');
+  if (!fs.existsSync(dashboardPath)) {
+    console.error('[dashboard] File missing at', dashboardPath);
+    return res.status(500).send('Dashboard file missing');
+  }
+
+  return res.type('html').send(fs.readFileSync(dashboardPath, 'utf8'));
 });
 
 app.use(express.static(path.join(__dirname, 'landing-clone')));

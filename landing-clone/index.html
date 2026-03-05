@@ -467,7 +467,8 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
 
 <script>
 (()=>{
-  let selectedTier='pro';
+  let selectedTier='lite';
+  let preferredTier='lite';
   let modalMode='checkout'; // 'checkout' | 'signin'
   const overlay=document.getElementById('ec-overlay');
   const closeBtn=document.getElementById('ec-close');
@@ -515,7 +516,8 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
   }
 
   function openModal(tier){
-    selectedTier=tier||'pro';
+    selectedTier=tier||preferredTier||'lite';
+    preferredTier=selectedTier;
     modalMode='checkout';
     tierText.textContent=tierNames[selectedTier]||selectedTier;
     showRegister();
@@ -524,7 +526,13 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     overlay.setAttribute('aria-hidden','false');
   }
 
-  function openSigninModal(){
+  function openSigninModal(tierHint){
+    if(tierHint){
+      selectedTier=tierHint;
+      preferredTier=tierHint;
+    } else {
+      selectedTier=preferredTier||selectedTier||'lite';
+    }
     modalMode='signin';
     showLogin();
     overlay.classList.add('open');
@@ -575,14 +583,16 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
     if(/sign in/i.test(label) && (el.getAttribute('href')||'').includes('login')){
       e.preventDefault();
       e.stopPropagation();
-      openSigninModal();
+      openSigninModal(preferredTier);
       return;
     }
 
     if(!/subscribe to|get openclaw|run openclaw now/i.test(label)) return;
     e.preventDefault();
     e.stopPropagation();
-    openModal(inferTierFromText(label));
+    const inferredTier=/run openclaw now/i.test(label) ? 'lite' : inferTierFromText(label);
+    preferredTier=inferredTier;
+    openModal(inferredTier);
   }, true);
 
   async function loadStripe(){

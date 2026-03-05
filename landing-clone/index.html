@@ -496,8 +496,14 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
   }
 
   function inferTierFromElement(el,label){
+    const forced=(el && el.dataset && el.dataset.tier) ? el.dataset.tier : '';
+    if(forced) return forced;
+
     const t=(label||'').toLowerCase();
     if(t.includes('run openclaw now')) return 'lite';
+    if(t.includes('subscribe to lite')) return 'lite';
+    if(t.includes('subscribe to pro')) return 'pro';
+    if(t.includes('subscribe to max')) return 'max';
     if(t.includes('lite')) return 'lite';
     if(t.includes('max')) return 'max';
     if(t.includes('pro')) return 'pro';
@@ -509,10 +515,25 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
       cur=cur.parentElement;
     }
     const joined=snippets.join(' ');
+    if(/subscribe to lite/.test(joined)) return 'lite';
+    if(/subscribe to pro/.test(joined)) return 'pro';
+    if(/subscribe to max/.test(joined)) return 'max';
     if(/\blite\b/.test(joined)) return 'lite';
     if(/\bmax\b/.test(joined)) return 'max';
     if(/\bpro\b/.test(joined)) return 'pro';
     return preferredTier||'lite';
+  }
+
+  function tagTierButtons(){
+    const els=[...document.querySelectorAll('button, a')];
+    for(const x of els){
+      const txt=(x.textContent||'').trim().toLowerCase();
+      if(!txt) continue;
+      if(txt.includes('subscribe to lite')) x.dataset.tier='lite';
+      else if(txt.includes('subscribe to pro')) x.dataset.tier='pro';
+      else if(txt.includes('subscribe to max')) x.dataset.tier='max';
+      else if(txt.includes('run openclaw now')) x.dataset.tier='lite';
+    }
   }
 
   function showRegister(){
@@ -587,6 +608,8 @@ $RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))
       resetErr.textContent='Network error while sending reset email.';
     }
   });
+
+  tagTierButtons();
 
   document.addEventListener('click',(e)=>{
     const el=e.target && e.target.closest ? e.target.closest('button, a') : null;
